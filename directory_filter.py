@@ -33,7 +33,7 @@ class DirectoryFilterCommand(sublime_plugin.TextCommand):
 
         # paths = os.popen('find "$(pwd -P)" -maxdepth 5 -regextype posix-extended -iregex ".*(%s).*" -readable -prune 2>/dev/null' % search).read()
         paths = os.popen(
-            "timeout 0.8s fdfind -a -i -p -c never --max-depth 10 -t d -- '%s[^/]*$' '%s' | head -100"
+            "timeout 0.8s fdfind -a -i -p -c never --max-depth 10 -t d -- '(%s)[^/]*$' '%s' | head -10000"
             % (search, self.current_base)
         ).read()
         paths = paths.strip().split("\n")
