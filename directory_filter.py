@@ -12,17 +12,6 @@ class DirectoryFilterCommand(sublime_plugin.TextCommand):
         super().__init__(*args, **kwargs)
         self.running = False
 
-    def _fdfind_clear(self, paths):
-        # perform pruning on the results
-        previous_dir = ""
-        ret = []
-        for path in paths:
-            if previous_dir in path and previous_dir or "./" in path[1:]:
-                continue
-            ret.append(path)
-            previous_dir = path
-        return ret
-
     def _update_sidebar(self):
         if not self.search:
             self.running = False
@@ -33,12 +22,11 @@ class DirectoryFilterCommand(sublime_plugin.TextCommand):
 
         # paths = os.popen('find "$(pwd -P)" -maxdepth 5 -regextype posix-extended -iregex ".*(%s).*" -readable -prune 2>/dev/null' % search).read()
         paths = os.popen(
-            "timeout 0.8s fdfind -a -i -p -c never --max-depth 10 -t d -- '(%s)[^/]*$' '%s' | head -10000"
+            "timeout 0.8s fdfind --prune -a -i -p -c never --max-depth 10 -t d -- '(%s)[^/]*$' '%s' | head -10000"
             % (search, self.current_base)
         ).read()
         paths = paths.strip().split("\n")
 
-        paths = self._fdfind_clear(paths)
         sublime.active_window().status_message("Found %i items" % len(paths))
 
         project_settings = {}
