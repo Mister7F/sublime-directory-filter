@@ -45,16 +45,17 @@ class DirectoryFilterCommand(sublime_plugin.TextCommand):
             project_settings[parent_dir]["folder_include_patterns"].append(path + "*")
             project_settings[parent_dir]["file_include_patterns"].append(path + "*")
 
-        sublime.active_window().set_project_data(
-            {
-                "folders": list(project_settings.values()),
-                "expanded_folders": paths,
-                "dir_filter_backup": {
-                    "base_dir": self.current_base,
-                    "search_text": search,
-                }
-            }
-        )
+        new_project = {
+            "folders": list(project_settings.values()),
+            "expanded_folders": paths,
+            "dir_filter_backup": {
+                "base_dir": self.current_base,
+                "search_text": search,
+            },
+            "backup_project": self.backup_project,
+        }
+
+        sublime.active_window().set_project_data(new_project)
 
         sublime.set_timeout_async(self._update_sidebar, MIN_UPDATE_PERIOD)
 
@@ -63,10 +64,14 @@ class DirectoryFilterCommand(sublime_plugin.TextCommand):
             self.view.settings().set("directory_filter_current_search", text)
             self.search = text.replace('"', "").replace("'", "").strip()
 
-            if len(text) < 3:
+            if len(text) == 0 and self.backup_project:
+                sublime.active_window().set_project_data(self.backup_project)
+
+            elif len(text) < 3:
                 # do not search and display base directory
                 sublime.active_window().set_project_data(
                     {
+                        "backup_project": self.backup_project,
                         "folders": [
                             {
                                 "path": self.current_base,
@@ -89,6 +94,8 @@ class DirectoryFilterCommand(sublime_plugin.TextCommand):
                 sublime.set_timeout_async(self._update_sidebar)
 
         project_data = sublime.active_window().project_data() or {}
+
+        self.backup_project = project_data.get("backup_project", project_data)
 
         self.current_base = project_data.get("dir_filter_backup", {}).get("base_dir")
         if not self.current_base:
