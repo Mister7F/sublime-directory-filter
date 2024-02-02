@@ -1,4 +1,5 @@
 import os
+import shlex
 import sublime
 import sublime_plugin
 
@@ -21,10 +22,11 @@ class DirectoryFilterCommand(sublime_plugin.TextCommand):
         self.search = None
 
         # paths = os.popen('find "$(pwd -P)" -maxdepth 5 -regextype posix-extended -iregex ".*(%s).*" -readable -prune 2>/dev/null' % search).read()
-        paths = os.popen(
-            "timeout 0.8s fdfind --prune -a -i -p -c never --max-depth 10 -t d -- '(%s)[^/]*$' '%s' | head -10000"
-            % (search, self.current_base)
-        ).read()
+        cmd = (
+            "timeout 0.8s fdfind --prune -a -i -p -c never --max-depth 10 -t d -- %s %s | head -10000"
+            % (shlex.quote("(%s)[^/]*$" % search), shlex.quote(self.current_base))
+        )
+        paths = os.popen(cmd).read()
         paths = paths.strip().split("\n")
 
         sublime.active_window().status_message("Found %i items" % len(paths))
@@ -52,7 +54,7 @@ class DirectoryFilterCommand(sublime_plugin.TextCommand):
                 "base_dir": self.current_base,
                 "search_text": search,
             },
-            "backup_project": self.backup_project,
+            "dir_filter_backup_project": self.backup_project,
         }
 
         sublime.active_window().set_project_data(new_project)
@@ -62,7 +64,7 @@ class DirectoryFilterCommand(sublime_plugin.TextCommand):
     def run(self, edit):
         def on_change(text):
             self.view.settings().set("directory_filter_current_search", text)
-            self.search = text.replace('"', "").replace("'", "").strip()
+            self.search = text
 
             if len(text) == 0 and self.backup_project:
                 sublime.active_window().set_project_data(self.backup_project)
@@ -71,7 +73,7 @@ class DirectoryFilterCommand(sublime_plugin.TextCommand):
                 # do not search and display base directory
                 sublime.active_window().set_project_data(
                     {
-                        "backup_project": self.backup_project,
+                        "dir_filter_backup_project": self.backup_project,
                         "folders": [
                             {
                                 "path": self.current_base,
@@ -95,7 +97,9 @@ class DirectoryFilterCommand(sublime_plugin.TextCommand):
 
         project_data = sublime.active_window().project_data() or {}
 
-        self.backup_project = project_data.get("backup_project", project_data)
+        self.backup_project = project_data.get(
+            "dir_filter_backup_project", project_data
+        )
 
         self.current_base = project_data.get("dir_filter_backup", {}).get("base_dir")
         if not self.current_base:
